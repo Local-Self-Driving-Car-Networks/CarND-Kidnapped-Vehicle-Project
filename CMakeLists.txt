@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 2.8.11)
 project(PARTICLE_FILTER)
 
-
 # Build the particle filter project and solution.
 # Use C++11
 set(SRCS src/main.cpp src/particle_filter.cpp)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic")
 set_source_files_properties(${SRCS} PROPERTIES COMPILE_FLAGS -std=c++0x)
 
 # Create the executable
@@ -24,12 +24,3 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/particle_filter_sol.cpp")
 	# Create the executable
 	add_executable(particle_filter_solution ${SRCS})
 endif()
-
-
-
-
-
-
-
-
-
