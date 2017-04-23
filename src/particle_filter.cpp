@@ -20,9 +20,8 @@ const size_t NUM_PARTICLES = 50;
 static std::default_random_engine generator(42);
 
 std::ostream &operator<<(std::ostream& os, const Particle &particle) {
-  return os << particle.id << ":(" <<
-    particle.x << ", " << particle.y << ")@" << particle.theta <<
-    ":w=" << particle.weight;
+  return os << particle.x << ' ' << particle.y << ' ' << particle.theta <<
+    ' ' << particle.weight;
 }
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
@@ -155,9 +154,11 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     }
 
     particle->weight = p;
+    std::cerr << *particle << ' ';
     // std::cout << "UPDATE " << *particle << std::endl;
     // std::cout << "particle weight " << particle->weight << std::endl;
   }
+  std::cerr << std::endl;
 
 	// NOTE: The observations are given in the VEHICLE'S coordinate system. Your particles are located
 	//   according to the MAP'S coordinate system. You will need to transform between the two systems.
