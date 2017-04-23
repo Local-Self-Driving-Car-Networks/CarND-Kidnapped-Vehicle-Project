@@ -2,7 +2,7 @@
  * particle_filter.cpp
  *
  *  Created on: Dec 12, 2016
- *      Author: Tiffany Huang
+ *      Author: Tiffany Huang & John Lees-Miller
  */
 
 #include <random>
@@ -12,6 +12,8 @@
 
 #include "particle_filter.h"
 
+// 50 is not that many particles, but it seems to be enough to provide good
+// tracking on the project dataset.
 const size_t NUM_PARTICLES = 50;
 
 // This would probably live more naturally as a class member, but since we
@@ -19,6 +21,7 @@ const size_t NUM_PARTICLES = 50;
 // substantially), let's just use a static generator.
 static std::default_random_engine generator(42);
 
+// Print out a particle for tracing.
 std::ostream &operator<<(std::ostream& os, const Particle &particle) {
   return os << particle.x << ' ' << particle.y << ' ' << particle.theta <<
     ' ' << particle.weight;
@@ -39,7 +42,6 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 		particle.y = y_normal(generator);
 		particle.theta = theta_normal(generator);
 		particle.weight = 1;
-    // std::cout << "INIT " << particle << std::endl;
 		particles.push_back(particle);
 	}
 
@@ -58,7 +60,6 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	for (std::vector<Particle>::iterator particle = particles.begin();
 		particle != particles.end(); ++particle)
 	{
-    // std::cout << "PREDICT " << *particle << std::endl;
 		if (fabs(yaw_rate) < EPSILON) {
 			particle->x += velocity * delta_t * cos(particle->theta);
 			particle->y += velocity * delta_t * sin(particle->theta);
@@ -98,13 +99,26 @@ void ParticleFilter::dataAssociation(
   }
 }
 
-double mvnormal_density(double x0, double x1,
+/**
+ * Calculate the log of the multivariate normal probability density function.
+ * Using the logarithm should help us avoid underflow errors for very small
+ * probabilities.
+ *
+ * @param  x0 coordinate to evaluate at
+ * @param  x1 coordinate to evaluate at
+ * @param  mean0 distribution mean
+ * @param  mean1 distribution mean
+ * @param  stdev0 distribution standard deviation
+ * @param  stdev1 distribution standard deviation
+ * @return log probability
+ */
+double mvnormal_log_density(double x0, double x1,
   double mean0, double mean1, double stdev0, double stdev1)
 {
-  double scale = 1.0 / sqrt(2 * stdev0 * stdev1 * M_PI);
+  double scale = log(2 * stdev0 * stdev1 * M_PI);
   double d0 = (x0 - mean0) * (x0 - mean0) / (stdev0 * stdev0);
   double d1 = (x1 - mean1) * (x1 - mean1) / (stdev1 * stdev1);
-  return scale * exp(-0.5 * (d0 + d1));
+  return -0.5 * (scale + d0 + d1);
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
@@ -112,7 +126,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 {
   std::vector<LandmarkObs> transformed_observations(observations.size());
 
-  // Get map landmarks into observation format for matching.
+  // Get map landmarks into observation format so we can pass them to the
+  // dataAssociation function. It seems odd that we have to do this, but we
+  // can't change the header file.
   std::vector<LandmarkObs> map_observations(map_landmarks.landmark_list.size());
   for (size_t i = 0; i < map_observations.size(); ++i) {
     map_observations[i].id = 0; // not used
@@ -139,20 +155,22 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     // Find nearest neighbors.
     dataAssociation(map_observations, transformed_observations);
 
-    // Find particle weight.
-    double p = 1.0;
+    // Find weight for each particle. Calculate in log space to avoid numerical
+    // underflow issues, and then exponentiate to get a probability out at the
+    // end.
+    double p = 0.0;
     for (size_t i = 0; i < observations.size(); ++i) {
       int j = transformed_observations[i].id;
-      p *= mvnormal_density(
+      p += mvnormal_log_density(
         transformed_observations[i].x, transformed_observations[i].y,
         map_observations[j].x, map_observations[j].y,
         std_landmark[0], std_landmark[1]);
     }
-    particle->weight = p;
+    particle->weight = exp(p);
 
+    // Uncomment these two `cerr` lines to enable tracing on stderr. This slows
+    // the program down a lot, so I have turned it off for submission.
     // std::cerr << *particle << ' ';
-    // std::cout << "UPDATE " << *particle << std::endl;
-    // std::cout << "particle weight " << particle->weight << std::endl;
   }
   // std::cerr << std::endl;
 }
@@ -189,7 +207,6 @@ void ParticleFilter::resample() {
     new_particle.y = particles[index].y;
     new_particle.theta = particles[index].theta;
     new_particle.weight = 1;
-    // std::cout << "RESAMPLE " << index << ":" << new_particle << std::endl;
     new_particles.push_back(new_particle);
   }
 
