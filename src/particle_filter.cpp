@@ -127,7 +127,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     // coordinates.
     for (size_t i = 0; i < observations.size(); ++i) {
       transformed_observations[i].x =
-        observations[i].x * cos(particle->theta) - // TODO may need sign change?
+        observations[i].x * cos(particle->theta) -
         observations[i].y * sin(particle->theta) +
         particle->x;
       transformed_observations[i].y =
@@ -136,39 +136,25 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         particle->y;
     }
 
+    // Find nearest neighbors.
     dataAssociation(map_observations, transformed_observations);
 
+    // Find particle weight.
     double p = 1.0;
     for (size_t i = 0; i < observations.size(); ++i) {
       int j = transformed_observations[i].id;
-      double distance_j = dist(
-        transformed_observations[i].x, transformed_observations[i].y,
-        map_observations[j].x, map_observations[j].y
-      );
-      if (distance_j > sensor_range) break;
-
       p *= mvnormal_density(
         transformed_observations[i].x, transformed_observations[i].y,
         map_observations[j].x, map_observations[j].y,
         std_landmark[0], std_landmark[1]);
     }
-
     particle->weight = p;
-    std::cerr << *particle << ' ';
+
+    // std::cerr << *particle << ' ';
     // std::cout << "UPDATE " << *particle << std::endl;
     // std::cout << "particle weight " << particle->weight << std::endl;
   }
-  std::cerr << std::endl;
-
-	// NOTE: The observations are given in the VEHICLE'S coordinate system. Your particles are located
-	//   according to the MAP'S coordinate system. You will need to transform between the two systems.
-	//   Keep in mind that this transformation requires both rotation AND translation (but no scaling).
-	//   The following is a good resource for the theory:
-	//   https://www.willamette.edu/~gorr/classes/GeneralGraphics/Transforms/transforms2d.htm
-	//   and the following is a good resource for the actual equation to implement (look at equation
-	//   3.33. Note that you'll need to switch the minus sign in that equation to a plus to account
-	//   for the fact that the map's y-axis actually points downwards.)
-	//   http://planning.cs.uiuc.edu/node99.html
+  // std::cerr << std::endl;
 }
 
 void ParticleFilter::resample() {
